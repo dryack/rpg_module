@@ -1,0 +1,174 @@
+#!/bin/sh
+
+SOURCE_CSV=monster_list.csv
+DEST_DEF=../rpg-1e-stats.def
+DEST_TEX=test_all.tex
+
+cat <<END_HEADER >${DEST_DEF}
+%% rpg-1e-stats.def
+%
+% Advanced First Edition stats for the Role-Playing Game Module class
+%
+% Copyright 2020 Michael C. Davis
+%
+% LICENSE FOR THE WORK
+%
+% This work consists of the following files:
+%    rpg-module.cls
+%    rpg-basic-stats.sty
+%    rpg-basic-stats.def
+%    rpg-1e-stats.sty
+%    rpg-1e-stats.def
+%    doc/rpg-module.tex
+%
+% This work may be distributed and/or modified under the conditions of the LaTeX
+% Project Public License, either version 1.3 of this license or (at your option)
+% any later version. The latest version of this license can be found at:
+% http://www.latex-project.org/lppl.txt
+% and version 1.3 or later is part of all distributions of LaTeX version
+% 2005/12/01 or later.
+%
+% This work has the LPPL maintenance status \`author-maintained'.
+% 
+% The Author and Maintainer of this work is Michael C. Davis
+%
+%
+% OPEN GAME LICENSE
+%
+% The monster stats in this file are copyright 2000, Wizards of the Coast, Inc.
+% and are distributed with permission under the terms of the Open Game License v 1.0.
+% See the file rpg-module.cls or the compiled documentation file rpg-module.pdf for
+% the full text of the license.
+%
+%
+% LICENSE FOR COMPILED WORKS
+%
+% You may distribute compiled works generated using the work as specified in
+% Clause 3 of the LaTeX Project Public License. If you incorporate Open Gaming
+% Content into the compiled work, you must also comply with the terms of that
+% license.
+%
+%
+% USAGE
+%
+% See the file rpg-module.pdf (source file doc/rpg-module.tex) for documentation. 
+% There are a number of worked examples in the examples/ directory.
+%
+% Technical support is provided on GitHub:
+%
+%    https://github.com/slithy/rpg_module
+%
+% and on the Dragonsfoot Forums:
+%
+%    http://www.dragonsfoot.org/forums/viewtopic.php?f=87&t=73823
+%
+% The format of entries in this file is:
+% \monster{key}[Name, Plural]{Name, Singular}{Type|THAC0|AC|MV|HD|Attacks|Dmglong|Dmg|SA|SD|MR|Special|SZ|Int|AL|Psi|PsiAtt|Frequency|NoAppear|InLair|TT|Level|XP}
+
+END_HEADER
+
+tail -n +3 ${SOURCE_CSV} |\
+awk 'BEGIN{FS="|"}{
+  if($1 == "") next
+  printf("\\monster")
+  if($3 != "") { printf("[%s]", $3) }
+  printf("{%s}{%s}{", $1, $2)
+  for(i = 4; i < NF; ++i) { printf("%s|", $i) }
+  printf("%s}\n", $NF)
+}' >>${DEST_DEF}
+
+#
+# Test stats document
+#
+
+cat <<END_LATEX >${DEST_TEX}
+\documentclass[a4paper,sansserif,1e]{rpg-module}
+
+\begin{document}
+
+\title{\textrm{\LaTeX}~RPG Module Class: 1e Stats Test}
+
+\part{1e Stats Test}
+
+\section{Long statblock format}
+
+The default is the long format, here shown for single monsters.
+
+END_LATEX
+
+tail -n +3 ${SOURCE_CSV} |\
+awk 'BEGIN{FS="|"}{
+  printf("\\statblock{%s}{1}{8}\n", $1)
+}' >>${DEST_TEX}
+
+cat <<END_LATEX >>${DEST_TEX}
+
+\section{Short statblock format}
+
+Short (inline) format, shown for two monsters (to make sure plurals look OK).
+
+END_LATEX
+
+tail -n +3 ${SOURCE_CSV} |\
+awk 'BEGIN{FS="|"}{
+  printf("\\noindent You must fight \\shortstats{%s}{2}{8 each}\n\n", $1)
+}' >>${DEST_TEX}
+
+cat <<END_LATEX >>${DEST_TEX}
+
+\section{Monster Listing format}
+
+END_LATEX
+
+tail -n +3 ${SOURCE_CSV} |\
+awk 'BEGIN{FS="|"}{
+  printf("\\begin{newmonster}{%s}\n", $1)
+  printf("\\end{newmonster}\n")
+}' >>${DEST_TEX}
+
+cat <<END_LATEX >>${DEST_TEX}
+
+\onecolumn
+
+\small
+
+\section{Wandering Monster Table}
+
+\begin{wanderingmonsters}[b]
+END_LATEX
+
+tail -n +3 ${SOURCE_CSV} |\
+awk 'BEGIN{FS="|"; count = 0}{
+  if($1 == "beholder" || $1 == "cattle_wild") { next }
+  printf("\\wanderitem{%s}{}\n", $1)
+  ++count
+  if(count == 30) {
+    printf("\\end{wanderingmonsters}\n\\begin{wanderingmonsters}[b]\n")
+    count = 0
+  }
+}' >>${DEST_TEX}
+
+cat <<END_LATEX >>${DEST_TEX}
+\end{wanderingmonsters}
+
+\section{Monster Roster Table}
+
+\begin{monsterroster}
+END_LATEX
+
+tail -n +3 ${SOURCE_CSV} |\
+awk 'BEGIN{FS="|"; count = 0}{
+  if($1 == "beholder" || $1 == "cattle_wild") { next }
+  printf("\\rosteritem{Room 1}{%s}{2}{5 each}\n", $1)
+  ++count
+  if(count == 30) {
+    printf("\\end{monsterroster}\n\\begin{monsterroster}\n")
+    count = 0
+  }
+}' >>${DEST_TEX}
+
+cat <<END_LATEX >>${DEST_TEX}
+\end{monsterroster}
+
+\end{document}
+END_LATEX
